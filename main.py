@@ -74,31 +74,34 @@ def put_music(music, response):
     file.write(response.content)
     file.close()
 
-    audio = eyed3.load(file_path)
-    if audio.tag is None:
-        audio.tag = eyed3.id3.Tag()
-        audio.tag.file_info = eyed3.id3.FileInfo(file_path)
-    artist = audio.tag.artist
-    title = audio.tag.title
+    try:
+        audio = eyed3.load(file_path)
+        if audio.tag is None:
+            audio.tag = eyed3.id3.Tag()
+            audio.tag.file_info = eyed3.id3.FileInfo(file_path)
+        artist = audio.tag.artist
+        title = audio.tag.title
 
-    if title is None:
-        audio.tag.title = music['title']
-    if artist is None:
-        audio.tag.artist = music['artist']
-    if len(music['track_covers']):
-        curr_images = [y.description for y in audio.tag.images]
-        for image in curr_images:
-            audio.tag.images.remove(image)
-        img_url = music['track_covers'][len(music['track_covers']) - 1]
-        r = requests.get(img_url)
-        audio.tag.images.set(3, r.content, 'image/jpeg')
+        if title is None:
+            audio.tag.title = music['title']
+        if artist is None:
+            audio.tag.artist = music['artist']
+        if len(music['track_covers']):
+            curr_images = [y.description for y in audio.tag.images]
+            for image in curr_images:
+                audio.tag.images.remove(image)
+            img_url = music['track_covers'][len(music['track_covers']) - 1]
+            r = requests.get(img_url)
+            audio.tag.images.set(3, r.content, 'image/jpeg')
 
-    audio.tag.save(version=(2, 3, 0))
-    track_name = '{0}-{1}-{2}.mp3'.format(audio.tag.artist, audio.tag.album if audio.tag.album is not None else '', audio.tag.title)
-    track_name = track_name.replace('--', '-')
-    track_name = sanitize(track_name)
-    new_track_path = '{0}/{1}'.format(path, track_name)
-    os.rename(file_path, new_track_path)
+        audio.tag.save(version=(2, 3, 0))
+        track_name = '{0}-{1}-{2}.mp3'.format(audio.tag.artist, audio.tag.album if audio.tag.album is not None else '', audio.tag.title)
+        track_name = track_name.replace('--', '-')
+        track_name = sanitize(track_name)
+        new_track_path = '{0}/{1}'.format(path, track_name)
+        os.rename(file_path, new_track_path)
+    except Exception:
+        print('Did not set a meta for this track')
 
 
 if __name__ == '__main__':
