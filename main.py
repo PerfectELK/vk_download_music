@@ -5,41 +5,54 @@ import requests
 import os
 from sanitize_filename import sanitize
 import eyed3
+import inquirer
+
+USERS_FOLDER = './files/users'
+
+def get_key(path):
+    return open(path, 'rb').read()
 
 
-KEY_PATH = 'files/crypto.key'
-LOGIN_PATH = 'files/login.txt'
-PASS_PATH = 'files/pass.txt'
-
-MUSIC_FOLDER = './files/music'
-
-def get_key():
-    return open(KEY_PATH, 'rb').read()
+def mkdir_if_not_exists(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
 
 
-def encrypt(data):
+def put_in_file(file, content, mode='w'):
+    f = open(file, mode)
+    f.write(content)
+    f.close()
+
+
+def encrypt(data, key=None):
     if data is None:
         raise ValueError('Data is empty')
-    f = Fernet(get_key())
+    if key is None:
+        f = Fernet(get_key())
+    else:
+        f = Fernet(key)
     encypted = f.encrypt(data)
     return encypted
 
 
-def decrypt(data):
+def decrypt(data, key=None):
     if data is None:
         raise ValueError('Data is empty')
-    f = Fernet(get_key())
+    if key is None:
+        f = Fernet(get_key())
+    else:
+        f = Fernet(key)
     decrypted_data = f.decrypt(data)
     return decrypted_data
 
 
-def get(urls, music_list):
+def get(urls, music_list, music_folder=None):
     print('start getting music files')
     i = 0
     for url in urls:
         r = requests.get(url)
         print('getting track: {0}'.format(music_list[i]['title']))
-        put_music(music_list[i], r)
+        put_music(music_list[i], r, music_folder=music_folder)
         i += 1
     print('music files is got')
 
@@ -61,10 +74,13 @@ def get_all_music(vk_audio, list_dirs):
     return tracks
 
 
-def put_music(music, response):
-    path = './files/music/{0}'.format(music['id'])
-    if not os.path.exists(path):
-        os.makedirs(path)
+def put_music(music, response, music_folder=None):
+    if (music_folder is None):
+        path = './files/music/{0}'.format(music['id'])
+    else:
+        path ='{0}/{1}'.format(music_folder, music['id'])
+
+    mkdir_if_not_exists(path)
 
     file_name = music['title']
     file_name = file_name.replace('/', '|')
@@ -104,18 +120,65 @@ def put_music(music, response):
         print('Did not set a meta for this track')
 
 
-if __name__ == '__main__':
-    VK_LOGIN = decrypt(open(LOGIN_PATH, 'rb').read()).decode("utf-8")
-    VK_PASS = decrypt(open(PASS_PATH, 'rb').read()).decode("utf-8")
-    vk_session = vk_api.VkApi(VK_LOGIN, VK_PASS)
-    vk_session.auth()
+def create_user():
+    user_name = input('Enter user name:')
+    user_phone = input('Enter user phone:')
+    user_pass = input('Enter password:')
 
-    list_dirs = [d for d in os.listdir(MUSIC_FOLDER) if os.path.isdir(os.path.join(MUSIC_FOLDER, d))]
+    vk_session = vk_api.VkApi(user_phone, user_pass)
+
+    try:
+        vk_session.auth()
+    except:
+        print('Invalid login or password')
+        exit(0)
+
+    user_dir = '{0}/{1}'.format(USERS_FOLDER, user_name)
+    mkdir_if_not_exists(user_dir)
+
+    key = Fernet.generate_key()
+    put_in_file('{0}/{1}'.format(user_dir, 'crypto.key'), key, mode='wb')
+
+    encrypted_phone = encrypt(bytes(user_phone, 'utf-8'), key=key)
+    put_in_file('{0}/{1}'.format(user_dir, 'login.txt'), encrypted_phone, mode='wb')
+    encrypted_pass = encrypt(bytes(user_pass, 'utf-8'), key=key)
+    put_in_file('{0}/{1}'.format(user_dir, 'pass.txt'), encrypted_pass, mode='wb')
+    return vk_session, user_name
+
+
+if __name__ == '__main__':
+
+    mkdir_if_not_exists(USERS_FOLDER)
+
+    user_dirs = [d for d in os.listdir(USERS_FOLDER) if os.path.isdir(os.path.join(USERS_FOLDER, d))]
+    user_dirs.append('+ New')
+
+    questions = [inquirer.List('user', message="What user?", choices=user_dirs)]
+
+    answers = inquirer.prompt(questions)
+
+    vk_session = None
+    user_name = None
+    if answers['user'] == '+ New':
+        vk_session, user_name = create_user()
+    else:
+        user_name = answers['user']
+        key = open('{0}/{1}/{2}'.format(USERS_FOLDER, user_name, 'crypto.key'), 'rb').read()
+        vk_login = open('{0}/{1}/{2}'.format(USERS_FOLDER, user_name, 'login.txt'), 'rb').read()
+        vk_path = open('{0}/{1}/{2}'.format(USERS_FOLDER, user_name, 'pass.txt'), 'rb').read()
+        decrypted_login = decrypt(vk_login, key=key).decode('utf-8')
+        decrypt_pass = decrypt(vk_path, key=key).decode('utf-8')
+        vk_session = vk_api.VkApi(decrypted_login, decrypt_pass)
+        vk_session.auth()
+
+    music_folder = '{0}/{1}/{2}'.format(USERS_FOLDER, user_name, 'music')
+    mkdir_if_not_exists(music_folder)
+    list_dirs = [d for d in os.listdir(music_folder) if os.path.isdir(os.path.join(music_folder, d))]
     vk_audio = VkAudio(vk_session)
     music_list = get_all_music(vk_audio, list_dirs)
-
+    music_list.reverse()
     urls = [music['url'] for music in music_list]
     if not len(urls):
         print('All music is sync')
         exit(1)
-    get(urls, music_list)
+    get(urls, music_list, music_folder=music_folder)

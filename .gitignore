@@ -1,6 +1,3 @@
-files/music/*
-files/login.txt
-files/pass.txt
-files/crypto.key
+files/users/*
 vk_config.v2.json
 .idea
