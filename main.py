@@ -6,6 +6,7 @@ import os
 from sanitize_filename import sanitize
 import eyed3
 import inquirer
+import time
 
 USERS_FOLDER = './files/users'
 
@@ -54,6 +55,7 @@ def get(urls, music_list, music_folder=None):
         print('getting track: {0}'.format(music_list[i]['title']))
         put_music(music_list[i], r, music_folder=music_folder)
         i += 1
+        time.sleep(1)
     print('music files is got')
 
 
