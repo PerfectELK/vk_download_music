@@ -53,7 +53,7 @@ def get(urls, music_list, music_folder=None):
     for url in urls:
         r = requests.get(url)
         print('getting track: {0}'.format(music_list[i]['title']))
-        put_music(music_list[i], r, music_folder=music_folder)
+        put_music(music_list[i], r, music_folder=music_folder, iter=i)
         i += 1
         time.sleep(1)
     print('music files is got')
@@ -76,7 +76,7 @@ def get_all_music(vk_audio, list_dirs):
     return tracks
 
 
-def put_music(music, response, music_folder=None):
+def put_music(music, response, music_folder=None, iter=None):
     if (music_folder is None):
         path = './files/music/{0}'.format(music['id'])
     else:
@@ -87,7 +87,7 @@ def put_music(music, response, music_folder=None):
     file_name = music['title']
     file_name = file_name.replace('/', '|')
     file_name = sanitize(file_name)
-    file_path = '{0}/{1}.mp3'.format(path, file_name)
+    file_path = '{0}/{1}. {2}.mp3'.format(path, iter + 1, file_name)
     file = open(file_path, 'wb')
     file.write(response.content)
     file.close()
@@ -116,7 +116,7 @@ def put_music(music, response, music_folder=None):
         track_name = '{0}-{1}-{2}.mp3'.format(audio.tag.artist, audio.tag.album if audio.tag.album is not None else '', audio.tag.title)
         track_name = track_name.replace('--', '-')
         track_name = sanitize(track_name)
-        new_track_path = '{0}/{1}'.format(path, track_name)
+        new_track_path = '{0}/{1}. {2}'.format(path, iter + 1, track_name)
         os.rename(file_path, new_track_path)
     except Exception:
         print('Did not set a meta for this track')
@@ -178,7 +178,6 @@ if __name__ == '__main__':
     list_dirs = [d for d in os.listdir(music_folder) if os.path.isdir(os.path.join(music_folder, d))]
     vk_audio = VkAudio(vk_session)
     music_list = get_all_music(vk_audio, list_dirs)
-    music_list.reverse()
     urls = [music['url'] for music in music_list]
     if not len(urls):
         print('All music is sync')
