@@ -2,11 +2,12 @@ import vk_api
 from vk_api.audio import VkAudio
 from cryptography.fernet import Fernet
 import requests
-import os
 from sanitize_filename import sanitize
 import eyed3
 import inquirer
-import time
+import os
+import shutil
+
 
 USERS_FOLDER = './files/users'
 
@@ -55,7 +56,6 @@ def get(urls, music_list, music_folder=None):
         print('getting track: {0}'.format(music_list[i]['title']))
         put_music(music_list[i], r, music_folder=music_folder, iter=i)
         i += 1
-        time.sleep(1)
     print('music files is got')
 
 
@@ -174,6 +174,16 @@ if __name__ == '__main__':
         vk_session.auth()
 
     music_folder = '{0}/{1}/{2}'.format(USERS_FOLDER, user_name, 'music')
+
+    questions = [inquirer.List('delete_music', message="Delete current music?", choices=['Yes', 'No'])]
+    answers = inquirer.prompt(questions)
+    if answers['delete_music'] == 'Yes':
+        for root, dirs, files in os.walk(music_folder):
+            for f in files:
+                os.unlink(os.path.join(root, f))
+            for d in dirs:
+                shutil.rmtree(os.path.join(root, d))
+
     mkdir_if_not_exists(music_folder)
     list_dirs = [d for d in os.listdir(music_folder) if os.path.isdir(os.path.join(music_folder, d))]
     vk_audio = VkAudio(vk_session)
