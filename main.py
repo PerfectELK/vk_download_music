@@ -62,16 +62,16 @@ def get(urls, music_list, music_folder=None):
 def get_all_music(vk_audio, list_dirs):
     tracks = []
     print('Start getting music objects')
-    i = 0
+    # i = 0
     for track in vk_audio.get_iter():
-        if i == 4:
-            break
+        # if i == 4:
+        #     break
         if str(track['id']) in list_dirs:
             print(track['title'] + ' already exist')
             continue
         print(track['title'] + ' put to array')
         tracks.append(track)
-        i += 1
+        # i += 1
     print('Music objects is got')
     return tracks
 
