@@ -62,16 +62,16 @@ def get(urls, music_list, music_folder=None):
 def get_all_music(vk_audio, list_dirs):
     tracks = []
     print('Start getting music objects')
-    # i = 0
+    i = 0
     for track in vk_audio.get_iter():
-        # if i == 1:
-        #     break
+        if i == 4:
+            break
         if str(track['id']) in list_dirs:
             print(track['title'] + ' already exist')
             continue
         print(track['title'] + ' put to array')
         tracks.append(track)
-        # i += 1
+        i += 1
     print('Music objects is got')
     return tracks
 
@@ -112,11 +112,16 @@ def put_music(music, response, music_folder=None, iter=None):
             r = requests.get(img_url)
             audio.tag.images.set(3, r.content, 'image/jpeg')
 
-        audio.tag.save(version=(2, 3, 0))
-        track_name = '{0}-{1}-{2}.mp3'.format(audio.tag.artist, audio.tag.album if audio.tag.album is not None else '', audio.tag.title)
+        track_name = '{0}. {1}-{2}-{3}.mp3'.format(
+            iter + 1, audio.tag.artist, audio.tag.album if audio.tag.album is not None else '', audio.tag.title
+        )
+        audio.tag.title = track_name
+        audio.tag.save()
+
         track_name = track_name.replace('--', '-')
         track_name = sanitize(track_name)
-        new_track_path = '{0}/{1}. {2}'.format(path, iter + 1, track_name)
+
+        new_track_path = '{0}/{1}'.format(path, track_name)
         os.rename(file_path, new_track_path)
     except Exception:
         print('Did not set a meta for this track')
