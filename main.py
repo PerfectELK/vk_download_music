@@ -3,7 +3,7 @@ from vk_api.audio import VkAudio
 from cryptography.fernet import Fernet
 import requests
 from sanitize_filename import sanitize
-import eyed3
+from eyed3 import id3
 import inquirer
 import os
 import shutil
@@ -62,16 +62,16 @@ def get(urls, music_list, music_folder=None):
 def get_all_music(vk_audio, list_dirs):
     tracks = []
     print('Start getting music objects')
-    # i = 0
+    i = 0
     for track in vk_audio.get_iter():
-        # if i == 4:
-        #     break
+        if i == 50:
+            break
         if str(track['id']) in list_dirs:
             print(track['title'] + ' already exist')
             continue
         print(track['title'] + ' put to array')
         tracks.append(track)
-        # i += 1
+        i += 1
     print('Music objects is got')
     return tracks
 
@@ -81,50 +81,48 @@ def put_music(music, response, music_folder=None, iter=None):
         path = './files/music/{0}'.format(music['id'])
     else:
         path ='{0}/{1}'.format(music_folder, music['id'])
-
     mkdir_if_not_exists(path)
 
     file_name = music['title']
     file_name = file_name.replace('/', '|')
     file_name = sanitize(file_name)
-    file_path = '{0}/{1}. {2}.mp3'.format(path, iter + 1, file_name)
+    file_path = '{0}/{1}.mp3'.format(path, file_name)
     file = open(file_path, 'wb')
     file.write(response.content)
     file.close()
 
-    try:
-        audio = eyed3.load(file_path)
-        if audio.tag is None:
-            audio.tag = eyed3.id3.Tag()
-            audio.tag.file_info = eyed3.id3.FileInfo(file_path)
-        artist = audio.tag.artist
-        title = audio.tag.title
+    print(file_path)
+    print(music['title'])
 
-        if title is None:
-            audio.tag.title = music['title']
-        if artist is None:
-            audio.tag.artist = music['artist']
-        if len(music['track_covers']):
-            curr_images = [y.description for y in audio.tag.images]
-            for image in curr_images:
-                audio.tag.images.remove(image)
-            img_url = music['track_covers'][len(music['track_covers']) - 1]
-            r = requests.get(img_url)
-            audio.tag.images.set(3, r.content, 'image/jpeg')
+    tag = id3.Tag()
+    tag.parse(file_path)
+    artist = tag.artist
+    title = tag.title
 
-        track_name = '{0}. {1}-{2}-{3}.mp3'.format(
-            iter + 1, audio.tag.artist, audio.tag.album if audio.tag.album is not None else '', audio.tag.title
-        )
-        audio.tag.title = track_name
-        audio.tag.save()
+    if title is None:
+        tag.title = music['title']
+    if artist is None:
+        tag.artist = music['artist']
+    if len(music['track_covers']):
+        curr_images = [y.description for y in tag.images]
+        for image in curr_images:
+            tag.images.remove(image)
+        img_url = music['track_covers'][len(music['track_covers']) - 1]
+        r = requests.get(img_url)
+        tag.images.set(3, r.content, 'image/jpeg')
 
-        track_name = track_name.replace('--', '-')
-        track_name = sanitize(track_name)
+    track_name = '{0}-{1}-{2}.mp3'.format(
+        tag.artist, tag.album if tag.album is not None else '', tag.title
+    )
+    tag.title = track_name
+    tag.save()
 
-        new_track_path = '{0}/{1}'.format(path, track_name)
-        os.rename(file_path, new_track_path)
-    except Exception:
-        print('Did not set a meta for this track')
+    track_name = track_name.replace('--', '-')
+    track_name = track_name.replace('--', '-')
+    track_name = sanitize(track_name)
+
+    new_track_path = '{0}/{1}'.format(path, track_name)
+    os.rename(file_path, new_track_path)
 
 
 def create_user():
@@ -160,7 +158,7 @@ if __name__ == '__main__':
     user_dirs = [d for d in os.listdir(USERS_FOLDER) if os.path.isdir(os.path.join(USERS_FOLDER, d))]
     user_dirs.append('+ New')
 
-    questions = [inquirer.List('user', message="What user?", choices=user_dirs)]
+    questions = [inquirer.List('user', message="Wha-t user?", choices=user_dirs)]
 
     answers = inquirer.prompt(questions)
 
