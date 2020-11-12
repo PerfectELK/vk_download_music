@@ -62,16 +62,16 @@ def get(urls, music_list, music_folder=None):
 def get_all_music(vk_audio, list_dirs):
     tracks = []
     print('Start getting music objects')
-    i = 0
+    #i = 0
     for track in vk_audio.get_iter():
-        if i == 50:
-            break
+        #if i == 50:
+           #break
         if str(track['id']) in list_dirs:
             print(track['title'] + ' already exist')
             continue
         print(track['title'] + ' put to array')
         tracks.append(track)
-        i += 1
+        #i += 1
     print('Music objects is got')
     return tracks
 
@@ -96,6 +96,10 @@ def put_music(music, response, music_folder=None, iter=None):
 
     tag = id3.Tag()
     tag.parse(file_path)
+    try:
+        tag.version = id3.ID3_DEFAULT_VERSION
+    except:
+        tag.version = id3.ID3_V1
     artist = tag.artist
     title = tag.title
 
@@ -115,7 +119,12 @@ def put_music(music, response, music_folder=None, iter=None):
         tag.artist, tag.album if tag.album is not None else '', tag.title
     )
     tag.title = track_name
-    tag.save()
+
+    try:
+        tag.save()
+    except:
+        tag.version = id3.ID3_V1
+        tag.save()
 
     track_name = track_name.replace('--', '-')
     track_name = track_name.replace('--', '-')
